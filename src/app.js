@@ -1,6 +1,8 @@
 import { categories, navigation, stages } from './es.js';
 import { toursRepository } from './storage.js';
-import { duplicateTour, exportTour, imageDimensionsAreValid, importTour, newTour, removeSpace } from './tour.js';
+import { duplicateTour, exportTour, panoramaDimensionsAreValid, importTour, newTour, removeSpace } from './tour.js';
+
+import { releaseVideo, validateVideo, videoSource } from './video.js';
 
 const app = document.querySelector('#app');
 const status = document.querySelector('#status');
@@ -19,6 +21,7 @@ let selectedSpace;
 let selectedLink;
 let placing = false;
 let viewer;
+let panoramaVideo;
 let activeTour;
 let history = [];
 const initialZoom = 100;
@@ -42,6 +45,11 @@ function imageUrl(blob) {
   if (!blob) return '';
   if (!urls.has(blob)) urls.set(blob, URL.createObjectURL(blob));
   return urls.get(blob);
+}
+
+function spaceThumbnail(space) {
+  if (space.video) return '<i class="video-thumbnail" aria-hidden="true">▶</i>';
+  return `<img src="${imageUrl(space.image)}" alt="">`;
 }
 
 function cover(tour) {
@@ -134,26 +142,28 @@ function information() {
     <textarea id="description" name="description" maxlength="2000" rows="4" placeholder="Describe tu recorrido…">${escape(draft.description)}</textarea>
     <label for="cover">Imagen de portada</label>
     <input id="cover" name="cover" type="file" accept="image/jpeg,image/png,image/webp">
-    <p class="muted">${draft.cover ? 'Hay una portada guardada. Puedes sustituirla.' : 'Si omites la portada, se usará la primera foto 360°.'}</p>
+    <p class="muted">${draft.cover ? 'Hay una portada guardada. Puedes sustituirla.' : 'Si omites la portada, se usará la primera foto 360° o un icono de la categoría.'}</p>
     <div class="form-actions">${link('recorridos', 'Cancelar', 'button secondary')}<button class="button primary">Siguiente →</button></div>
   </form>`;
 }
 
 function spaces() {
-  return `<div class="heading"><h1>Espacios del recorrido</h1>${button('upload', '＋ Agregar espacio 360°', 'primary')}</div>
+  return `<div class="heading"><h1>Espacios del recorrido</h1>${button('upload', '＋ Subir vídeo 360°', 'primary')} ${button('upload-image', 'Agregar foto 360°')}</div>
+    <input id="panoramas-videos" type="file" accept="video/mp4,.mp4" multiple hidden>
     <input id="panoramas" type="file" accept="image/jpeg,image/png,image/webp" multiple hidden>
-    <p class="muted">Sube fotos equirectangulares 2:1 exportadas desde Insta360 Studio o la app Insta360. Formatos JPEG, PNG y WebP.</p>
+    <p class="muted">Sube vídeos 360° equirectangulares 2:1 en MP4. Recomendamos H.264 para reproducirlos en más dispositivos. El archivo original se guarda en este navegador.</p>
     <ol class="space-list">${draft.spaces.map((space, index) => `<li>
-      <img src="${imageUrl(space.image)}" alt="">
+      ${spaceThumbnail(space)}
       <div class="space-name"><strong>${escape(space.name)}</strong><small>${escape(space.filename)}</small></div>
       <div class="actions">
         ${index > 0 ? button('up', '↑ <span class="sr-only">Subir</span>', 'icon', space.id) : ''}
         ${index < draft.spaces.length - 1 ? button('down', '↓ <span class="sr-only">Bajar</span>', 'icon', space.id) : ''}
         ${button('preview', 'Ver', 'icon', space.id)}
+        ${space.video ? button('download-video', 'Descargar MP4', 'icon', space.id) : ''}
         ${button('rename', 'Editar', 'icon', space.id)}
         ${button('remove-space', 'Eliminar', 'icon danger', space.id)}
       </div></li>`).join('')}</ol>
-    ${draft.spaces.length ? '' : '<div class="empty">Agrega la primera foto panorámica para continuar.</div>'}`;
+    ${draft.spaces.length ? '' : '<div class="empty">Sube el primer vídeo o agrega una foto panorámica para continuar.</div>'}`;
 }
 
 function connections() {
@@ -165,6 +175,7 @@ function connections() {
   return `<h1>Conectar espacios</h1>
     <p class="muted">${targets.length ? 'Elige el destino y coloca el punto sobre la puerta o el paso en la panorámica.' : 'Agrega otro espacio para crear una conexión.'}</p>
     <div id="panorama" class="panorama editor" aria-label="Editor panorámico"></div>
+    ${space.video ? `<div class="editor-video-controls">${button('toggle-video', '▶ Reproducir vídeo')}</div>` : ''}
     ${spaceStrip(draft, space.id, 'select-space')}
     ${targets.length ? `<div class="connection-controls">
       <label for="connection">Punto interactivo</label>
@@ -211,7 +222,7 @@ function wizard() {
 function spaceStrip(tour, id, action) {
   return `<div class="space-strip" aria-label="Espacios del recorrido">${tour.spaces.map(space =>
     `<button type="button" data-action="${action}" data-value="${space.id}" aria-pressed="${space.id === id}">
-      <img src="${imageUrl(space.image)}" alt=""><span>${escape(space.name)}</span>
+      ${spaceThumbnail(space)}<span>${escape(space.name)}</span>
     </button>`).join('')}</div>`;
 }
 
@@ -222,6 +233,7 @@ function tourViewer(tour, space) {
       ${button('fullscreen', '⛶ <span class="sr-only">Pantalla completa</span>', 'glass')}</div></div>
     <div id="panorama" class="panorama" aria-label="Panorámica de ${escape(space.name)}"></div>
     <div class="viewer-controls">
+      ${space.video ? button('toggle-video', '▶ Reproducir vídeo', 'glass') : ''}
       ${button('map', '▥ Mapa', 'glass')}${button('show-spaces', '▦ Espacios', 'glass')}
       ${button('previous-space', '← <span class="sr-only">Espacio anterior</span>', 'glass')}
       ${button('next-space', '→ <span class="sr-only">Espacio siguiente</span>', 'glass')}
@@ -254,7 +266,7 @@ function map(tour, space) {
       ${edges}${tour.spaces.map(item => {
         const { x, y } = positions.get(item.id);
         return `<button type="button" class="node ${item.id === space.id ? 'current' : ''}" style="left:${x}px;top:${y}px"
-          data-action="open-space" data-value="${item.id}"><img src="${imageUrl(item.image)}" alt=""><span>${escape(item.name)}</span></button>`;
+          data-action="open-space" data-value="${item.id}">${spaceThumbnail(item)}<span>${escape(item.name)}</span></button>`;
       }).join('')}</div></div></div></main>`;
 }
 
@@ -264,7 +276,7 @@ function help() {
     <div class="help-content">${{
       controles: '<h2>Controles 360°</h2><p>Arrastra para mirar alrededor con el mouse o con un dedo. Usa la rueda, un gesto de pellizco o los botones de zoom para acercar y alejar. Con el panorama enfocado puedes usar las flechas del teclado.</p><p>Selecciona los puntos azules para pasar a otro espacio. También puedes usar las flechas de navegación, el mapa y la lista de espacios.</p>',
       configuracion: '<h2>Configuración</h2><label for="language">Idioma</label><select id="language"><option>Español</option></select><h3>Instalación</h3><p>En Chrome o Edge, usa Instalar desde el menú del navegador. En iPhone, abre Safari y elige Compartir → Añadir a pantalla de inicio.</p><h3>Almacenamiento local</h3><p>Exporta tus recorridos desde Mis recorridos antes de borrar los datos del navegador o cambiar de dispositivo.</p>',
-    }[routeParts()[1]] || '<h2>Guía rápida</h2><ol><li>Crea un recorrido y elige una categoría.</li><li>Exporta las fotos cosidas de Insta360 como panoramas equirectangulares 2:1.</li><li>Sube las fotos 360° y asigna un nombre a cada espacio.</li><li>Conecta los espacios mediante puntos interactivos.</li><li>Publica localmente o exporta un archivo para compartir.</li></ol>'}</div>
+    }[routeParts()[1]] || '<h2>Guía rápida</h2><ol><li>Crea un recorrido y elige una categoría.</li><li>Exporta el vídeo de Insta360 como MP4 360° equirectangular 2:1.</li><li>Sube los vídeos 360° y asigna un nombre a cada espacio.</li><li>Conecta los espacios mediante puntos interactivos.</li><li>Publica localmente o exporta un archivo para compartir.</li></ol>'}</div>
     </div></main>`;
 }
 
@@ -275,11 +287,55 @@ function routeParts() {
 function cleanViewer() {
   viewer?.destroy();
   viewer = undefined;
+  if (panoramaVideo) releaseVideo(panoramaVideo);
+  panoramaVideo = undefined;
   for (const url of urls.values()) URL.revokeObjectURL(url);
   urls.clear();
 }
 
 function showPanorama(tour, space, editing = false) {
+  if (!space.video) {
+    mountPanorama(tour, space, imageUrl(space.image), editing);
+    return;
+  }
+
+  const video = videoSource(imageUrl(space.video), 'auto');
+  panoramaVideo = video;
+  const container = document.querySelector('#panorama');
+  const message = document.createElement('p');
+  message.className = 'video-loading';
+  message.textContent = 'Cargando vídeo 360°…';
+  container.append(message);
+  const initialize = () => {
+    if (panoramaVideo !== video || viewer) return;
+    message.remove();
+    video.width = video.videoWidth;
+    video.height = video.videoHeight;
+    mountPanorama(tour, space, video, editing);
+    viewer?.setUpdate(!video.paused);
+    video.className = 'panorama-source';
+    video.setAttribute('aria-hidden', 'true');
+    container.append(video);
+  };
+  video.addEventListener('loadeddata', initialize, { once: true });
+  video.addEventListener('error', () => {
+    if (panoramaVideo !== video) return;
+    message.textContent = 'No se pudo reproducir este vídeo. Prueba una exportación MP4 en H.264.';
+    container.append(message);
+  });
+  for (const event of ['play', 'pause', 'ended']) {
+    video.addEventListener(event, () => {
+      if (panoramaVideo !== video) return;
+      const playing = !video.paused && !video.ended;
+      viewer?.setUpdate(playing);
+      const toggle = document.querySelector('[data-action="toggle-video"]');
+      if (toggle) toggle.textContent = playing ? '⏸ Pausar vídeo' : '▶ Reproducir vídeo';
+    });
+  }
+  if (video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) initialize();
+}
+
+function mountPanorama(tour, space, source, editing) {
   if (!window.pannellum) {
     document.querySelector('#panorama').textContent = 'No se pudo cargar el visor 360°.';
     return;
@@ -287,7 +343,9 @@ function showPanorama(tour, space, editing = false) {
   const hotspots = space.links.filter(point => tour.spaces.some(item => item.id === point.target));
   viewer = window.pannellum.viewer('panorama', {
     type: 'equirectangular',
-    panorama: imageUrl(space.image),
+    panorama: source,
+    dynamic: Boolean(space.video),
+    dynamicUpdate: Boolean(space.video),
     autoLoad: true,
     showFullscreenCtrl: false,
     showZoomCtrl: editing,
@@ -430,8 +488,8 @@ async function save(tour) {
   else tours[index] = structuredClone(tour);
 }
 
-async function changeDraft(update) {
-  const updated = structuredClone(draft);
+async function changeDraft(update, original = draft) {
+  const updated = structuredClone(original);
   update(updated);
   await save(updated);
   if (draft?.id === updated.id) draft = updated;
@@ -441,7 +499,7 @@ async function validateImage(file, panorama) {
   if (!imageTypes.includes(file.type)) throw new Error(`${file.name}: usa JPEG, PNG o WebP.`);
   const bitmap = await createImageBitmap(file).catch(() => { throw new Error(`${file.name}: no se pudo leer la imagen.`); });
   try {
-    if (panorama && !imageDimensionsAreValid(bitmap.width, bitmap.height)) {
+    if (panorama && !panoramaDimensionsAreValid(bitmap.width, bitmap.height)) {
       throw new Error(`${file.name}: se requiere un panorama 2:1 de al menos 512 px de ancho.`);
     }
   } finally {
@@ -475,8 +533,8 @@ function moveSpace(offset) {
   goToSpace(next.id, offset > 0);
 }
 
-function download(data, name) {
-  const url = URL.createObjectURL(new Blob([JSON.stringify(data)], { type: 'application/json' }));
+function download(blob, name) {
+  const url = URL.createObjectURL(blob);
   const anchor = document.createElement('a');
   anchor.href = url;
   anchor.download = name;
@@ -509,27 +567,41 @@ app.addEventListener('change', event => {
     placing = false;
     render();
   }
-  if (input.id === 'panoramas') perform(async () => {
+  if (['panoramas', 'panoramas-videos'].includes(input.id)) perform(async () => {
+    const target = draft;
+    const isVideo = input.id === 'panoramas-videos';
     const errors = [];
     const valid = [];
     for (const file of input.files) {
       try {
-        await validateImage(file, true);
-        valid.push({ id: crypto.randomUUID(), name: file.name.replace(/\.[^.]+$/, ''), filename: file.name, image: file, links: [] });
+        let media;
+        if (isVideo) {
+          if (!/\.mp4$/i.test(file.name)) throw new Error(`${file.name}: selecciona un vídeo MP4.`);
+          media = file.type === 'video/mp4' ? file : new File([file], file.name, { type: 'video/mp4' });
+          await validateVideo(media);
+        } else {
+          media = file;
+          await validateImage(media, true);
+        }
+        valid.push({ id: crypto.randomUUID(), name: file.name.replace(/\.[^.]+$/, ''), filename: file.name,
+          [isVideo ? 'video' : 'image']: media, links: [] });
       } catch (error) {
         errors.push(error.message);
       }
     }
     if (valid.length) {
-      await changeDraft(updated => updated.spaces.push(...valid));
+      await changeDraft(updated => updated.spaces.push(...valid), target);
     }
-    render();
+    if (location.hash === '#espacios/' + target.id) render();
     announce([valid.length ? `${valid.length} espacios agregados.` : '', ...errors].filter(Boolean).join(' '));
   });
   if (input.id === 'import-file' && input.files.length) perform(async () => {
     const tour = importTour(JSON.parse(await input.files[0].text()));
     for (const space of tour.spaces) {
-      await validateImage(new File([space.image], space.filename || space.name, { type: space.image.type }), true);
+      const media = space.video || space.image;
+      const file = new File([media], space.filename || space.name, { type: media.type });
+      if (space.video) await validateVideo(file);
+      else await validateImage(file, true);
     }
     await save(tour);
     render();
@@ -539,7 +611,18 @@ app.addEventListener('change', event => {
 
 const actions = {
   import: () => document.querySelector('#import-file').click(),
-  upload: () => document.querySelector('#panoramas').click(),
+  upload: () => document.querySelector('#panoramas-videos').click(),
+  'upload-image': () => document.querySelector('#panoramas').click(),
+  'download-video'(id) {
+    const space = draft.spaces.find(item => item.id === id);
+    download(space.video, space.filename || 'video-360.mp4');
+  },
+  async 'toggle-video'() {
+    const video = panoramaVideo;
+    if (!video) return;
+    if (!video.paused) video.pause();
+    else await video.play();
+  },
   async duplicate(id) {
     await save(duplicateTour(tours.find(item => item.id === id)));
     render();
@@ -554,7 +637,14 @@ const actions = {
   },
   async export(id) {
     const tour = tours.find(item => item.id === id);
-    download(await exportTour(tour), `${tour.title.replace(/[^\p{L}\p{N} -]/gu, '_')}.virtualtours.json`);
+    let bundle;
+    try {
+      bundle = JSON.stringify(await exportTour(tour));
+    } catch (error) {
+      if (!tour.spaces.some(space => space.video)) throw error;
+      throw new Error('No se pudo exportar el recorrido completo. Descarga los MP4 originales desde Espacios del recorrido.');
+    }
+    download(new Blob([bundle], { type: 'application/json' }), `${tour.title.replace(/[^\p{L}\p{N} -]/gu, '_')}.virtualtours.json`);
   },
   next() {
     if (!draft.spaces.length) throw new Error('Agrega al menos un espacio 360° para continuar.');
@@ -649,7 +739,7 @@ app.addEventListener('click', event => {
   const target = event.target.closest('button[data-action]');
   const action = actions[target?.dataset.action];
   if (!action) return;
-  if (['import', 'upload'].includes(target.dataset.action)) action();
+  if (['import', 'upload', 'upload-image'].includes(target.dataset.action)) action();
   else perform(() => action(target.dataset.value));
 });
 

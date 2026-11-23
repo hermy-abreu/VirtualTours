@@ -17,13 +17,13 @@ Abre [http://localhost:4173/VirtualTours/](http://localhost:4173/VirtualTours/).
 
 ## Crear un recorrido
 
-1. Exporta las fotos cosidas de la Insta360 X4 desde Insta360 Studio o la app Insta360. Usa panoramas equirectangulares 2:1 en JPEG, PNG o WebP, con al menos 512 píxeles de ancho.
+1. Exporta desde Insta360 Studio o la app Insta360 como vídeo 360° equirectangular 2:1 en MP4. H.264 ofrece mayor compatibilidad de reproducción. El navegador comprueba que puede leer el archivo y que mide al menos 512 píxeles de ancho.
 2. En **Crear recorrido**, introduce el título, la descripción, el tipo y una portada opcional.
-3. Sube las fotos 360°, ponles nombre y ordénalas.
+3. En **Espacios del recorrido**, sube los vídeos 360° directamente, ponles nombre y ordénalos. También puedes seguir usando fotos panorámicas JPEG, PNG o WebP.
 4. En **Conexiones**, elige el espacio de destino, pulsa **Añadir punto** y selecciona su posición en la panorámica.
 5. Abre el visor o publica el recorrido localmente para encontrarlo en **Explorar**.
 
-Los borradores y las fotos se guardan con IndexedDB en el dispositivo y perfil del navegador donde se crearon. La capacidad está sujeta a la cuota y política del navegador. **Exportar archivo** genera una copia que puedes guardar o enviar. El destinatario puede abrirla mediante **Mis recorridos → Importar archivo**.
+Los borradores, vídeos y fotos se guardan con IndexedDB en el dispositivo y perfil del navegador donde se crearon. La capacidad está sujeta a la cuota y política del navegador. **Exportar archivo** genera una copia que puedes guardar o enviar. Para clips largos o de alta resolución, usa **Descargar MP4** en Espacios del recorrido para recuperar cada original sin convertirlo o envolverlo en JSON. El destinatario de una exportación JSON puede abrirla mediante **Mis recorridos → Importar archivo**.
 
 ## GitHub Pages y enlaces públicos
 
@@ -44,6 +44,6 @@ La aplicación se puede instalar desde navegadores compatibles. En iPhone, abre 
 - `src/tour.js` contiene el modelo de recorridos, conexiones y formato de intercambio.
 - `src/storage.js` proporciona la interfaz de persistencia local. Una futura integración puede implementar el mismo contrato con Firestore para metadatos, Storage para multimedia y Authentication para acceso.
 - `src/es.js` centraliza la navegación, las categorías y las etapas del asistente. El resto de los textos de interfaz está en español y puede extraerse al incorporar otro idioma.
-- El editor de vídeo futuro puede incorporarse como módulo de procesamiento independiente con entrada y salida de archivos. El visor solo necesita panoramas terminados. La investigación de eliminación del camarógrafo queda pendiente de las pruebas A y B de Insta360 X4.
+- El editor de vídeo futuro puede incorporarse como módulo de procesamiento independiente con entrada y salida de archivos. La vista previa reproduce los clips 360° exportados de la cámara. La generación de recorridos mediante GPU aún requiere una integración que reciba esos originales y procese los clips. La investigación de eliminación del camarógrafo queda pendiente de las pruebas A y B de Insta360 X4.
 
 Fotografía de la pantalla de inicio disponible en [Unsplash](https://images.unsplash.com/photo-1470770841072-f978cf4d019e).

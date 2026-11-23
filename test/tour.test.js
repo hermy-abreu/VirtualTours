@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { duplicateTour, imageDimensionsAreValid, importTour, newTour, removeSpace } from '../src/tour.js';
+import { duplicateTour, panoramaDimensionsAreValid, importTour, newTour, removeSpace } from '../src/tour.js';
 
 const dataImage = 'data:image/png;base64,AA==';
 const bundle = {
@@ -12,10 +12,10 @@ const bundle = {
 };
 
 test('valida los límites de panoramas equirectangulares', () => {
-  assert.equal(imageDimensionsAreValid(8192, 4096), true);
-  assert.equal(imageDimensionsAreValid(1024, 513), true);
-  assert.equal(imageDimensionsAreValid(1024, 540), false);
-  assert.equal(imageDimensionsAreValid(256, 128), false);
+  assert.equal(panoramaDimensionsAreValid(8192, 4096), true);
+  assert.equal(panoramaDimensionsAreValid(1024, 513), true);
+  assert.equal(panoramaDimensionsAreValid(1024, 540), false);
+  assert.equal(panoramaDimensionsAreValid(256, 128), false);
 });
 
 test('importa archivos con conexiones y conserva la clave de los espacios públicos', () => {

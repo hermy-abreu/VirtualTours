@@ -16,7 +16,7 @@ export function removeSpace(tour, id) {
   }
 }
 
-export function imageDimensionsAreValid(width, height) {
+export function panoramaDimensionsAreValid(width, height) {
   return width >= 512 && Math.abs(width - height * 2) <= 2;
 }
 
@@ -33,26 +33,31 @@ function fileAsDataURL(file) {
 export async function exportTour(tour) {
   return {
     ...tour,
-    version: 1,
+    version: tour.spaces.some(space => space.video) ? 2 : 1,
     cover: await fileAsDataURL(tour.cover),
     spaces: await Promise.all(tour.spaces.map(async space => ({
-      ...space, image: await fileAsDataURL(space.image),
+      ...space,
+      ...(space.video
+        ? { video: await fileAsDataURL(space.video) }
+        : { image: await fileAsDataURL(space.image) }),
     }))),
   };
 }
 
-function decodeImage(value) {
-  if (typeof value !== 'string' || !/^data:image\/(jpeg|png|webp);base64,[a-z\d+/=]+$/i.test(value)) {
-    throw new Error('El archivo contiene una imagen incompatible.');
-  }
-  const [header, data] = value.split(',');
-  return new Blob([Uint8Array.from(atob(data), char => char.charCodeAt(0))], {
-    type: header.slice(5, -7),
-  });
+function decodeMedia(value, type) {
+  const format = type === 'video' ? 'video/mp4' : 'image/(?:jpeg|png|webp)';
+  const header = typeof value === 'string' && value.match(new RegExp(`^data:(${format});base64,`, 'i'));
+  if (!header) throw new Error('El archivo contiene un formato multimedia incompatible.');
+  const data = value.slice(header[0].length);
+  if (!data) throw new Error('El archivo contiene un elemento multimedia vacío.');
+  const bytes = typeof Uint8Array.fromBase64 === 'function'
+    ? Uint8Array.fromBase64(data)
+    : Uint8Array.from(atob(data), char => char.charCodeAt(0));
+  return new Blob([bytes], { type: header[1] });
 }
 
 export function importTour(data, { preserveSpaceIds = false } = {}) {
-  if (data?.version !== 1 || typeof data.title !== 'string' || !data.title.trim()
+  if (![1, 2].includes(data?.version) || typeof data.title !== 'string' || !data.title.trim()
       || !Array.isArray(data.spaces) || !Object.hasOwn(categories, data.category)) {
     throw new Error('Selecciona un archivo exportado desde VirtualTours.');
   }
@@ -67,13 +72,15 @@ export function importTour(data, { preserveSpaceIds = false } = {}) {
     ...newTour(data.category),
     title: data.title,
     description: typeof data.description === 'string' ? data.description : '',
-    cover: data.cover ? decodeImage(data.cover) : null,
+    cover: data.cover ? decodeMedia(data.cover, 'image') : null,
     published: Boolean(data.published && data.spaces.length),
     spaces: data.spaces.map(space => ({
       id: ids.get(space.id),
       name: String(space.name || 'Espacio'),
       filename: String(space.filename || ''),
-      image: decodeImage(space.image),
+      ...(data.version === 2 && space.video
+        ? { video: decodeMedia(space.video, 'video') }
+        : { image: decodeMedia(space.image, 'image') }),
       links: (Array.isArray(space.links) ? space.links : [])
         .filter(link => ids.has(link.target) && link.target !== space.id
           && Number.isFinite(link.pitch) && Math.abs(link.pitch) <= 90
