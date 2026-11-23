@@ -48,7 +48,8 @@ button:focus-visible, a:focus-visible, select:focus-visible, input:focus-visible
   position: relative; display: grid; justify-items: center; align-content: center; gap: 5px; min-height: 82px;
   padding: 12px 8px; border: 1px solid #b6c8db; border-radius: 12px; text-align: center; font-weight: 760; cursor: pointer;
 }
-.category span { font-size: 2rem; line-height: 1; }
+.category-icon { display: inline-block; width: 1.15em; height: 1.15em; vertical-align: -.18em; }
+.category .category-icon { width: 2rem; height: 2rem; }
 .category input { position: absolute; inset: 0; opacity: 0; width: 100%; height: 100%; margin: 0; cursor: pointer; }
 .category:has(input:checked), .category:hover { background: #e0eaff; color: #0735c7; border-color: #164de8; }
 .category:has(input:focus-visible) { outline: 3px solid #45aeff; outline-offset: 3px; }
@@ -92,7 +93,8 @@ legend { margin-bottom: 9px; }
 .card { position: relative; min-width: 0; background: white; border: 1px solid #d6e2f0; border-radius: 13px; box-shadow: 0 6px 14px #12375812; }
 .card-image { display: block; height: 146px; overflow: hidden; border-radius: 12px 12px 0 0; background: #102e4c; }
 .card-image img, .publication img { width: 100%; height: 100%; object-fit: cover; }
-.placeholder { display: grid; height: 100%; place-items: center; font-size: 3.6rem; color: white; background: linear-gradient(145deg, #0b2948, #145798); }
+.placeholder { display: grid; height: 100%; place-items: center; color: white; background: linear-gradient(145deg, #0b2948, #145798); }
+.placeholder .category-icon { width: 3.6rem; height: 3.6rem; }
 .card-info { display: flex; align-items: center; justify-content: space-between; gap: 7px; min-height: 68px; padding: 10px 12px; }
 .card-title { font-weight: 790; overflow-wrap: anywhere; }
 .card-title:hover { color: var(--blue); }

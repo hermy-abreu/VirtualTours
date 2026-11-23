@@ -4,7 +4,11 @@ import { duplicateTour, exportTour, imageDimensionsAreValid, importTour, newTour
 
 const app = document.querySelector('#app');
 const status = document.querySelector('#status');
-const icons = { casa: '⌂', edificio: '▦', lugar: '◆' };
+const categoryIcons = {
+  casa: '<path d="M2 11 12 3l10 8M5 9v12h14V9M10 21v-7h4v7"/>',
+  edificio: '<path d="M3 21h18M5 21V3h14v18M10 21v-4h4v4M9 7h1m4 0h1m-6 4h1m4 0h1"/>',
+  lugar: '<path d="M20 10c0 5-8 11-8 11S4 15 4 10a8 8 0 1 1 16 0Z"/><circle cx="12" cy="10" r="2.5"/>',
+};
 const imageTypes = ['image/jpeg', 'image/png', 'image/webp'];
 const urls = new Map();
 let tours = [];
@@ -28,6 +32,11 @@ const link = (href, label, style = 'button') => `<a class="${style}" href="#${hr
 const button = (action, label, style = 'secondary', value = '') =>
   `<button type="button" class="button ${style}" data-action="${action}" data-value="${escape(value)}">${label}</button>`;
 
+function categoryIcon(category) {
+  return `<svg class="category-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"
+    fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${categoryIcons[category]}</svg>`;
+}
+
 function imageUrl(blob) {
   if (!blob) return '';
   if (!urls.has(blob)) urls.set(blob, URL.createObjectURL(blob));
@@ -36,7 +45,7 @@ function imageUrl(blob) {
 
 function cover(tour) {
   const url = imageUrl(tour.cover || tour.spaces[0]?.image);
-  return url ? `<img src="${url}" alt="" loading="lazy">` : `<span class="placeholder" aria-hidden="true">${icons[tour.category]}</span>`;
+  return url ? `<img src="${url}" alt="" loading="lazy">` : `<span class="placeholder" aria-hidden="true">${categoryIcon(tour.category)}</span>`;
 }
 
 function announce(message) {
@@ -60,7 +69,7 @@ function home() {
     <p class="subtitle">Recorridos virtuales 360°</p>
     <p>Explora casas, edificios y los lugares que visites.</p>
     <div class="categories hero-categories">${Object.entries(categories).map(([id, label]) =>
-      link(`explorar/${id}`, `<span aria-hidden="true">${icons[id]}</span>${label}`, 'category')).join('')}</div>
+      link(`explorar/${id}`, `${categoryIcon(id)}${label}`, 'category')).join('')}</div>
     <div class="hero-actions">
       ${link('crear', 'Crear recorrido ＋', 'button primary')}
       ${link('explorar', 'Explorar recorridos ⌕', 'button glass')}
@@ -73,7 +82,7 @@ function card(tour, editing) {
   return `<article class="card" data-title="${escape(`${tour.title} ${tour.description}`.toLowerCase())}" data-category="${tour.category}">
     <a href="#${editing ? 'editar/' + tour.id : route}" class="card-image" aria-label="${escape(tour.title)}">${cover(tour)}</a>
     <div class="card-info"><div><a class="card-title" href="#${editing ? 'editar/' + tour.id : route}">
-      <span aria-hidden="true">${icons[tour.category]}</span> ${escape(tour.title)}</a>
+      ${categoryIcon(tour.category)} ${escape(tour.title)}</a>
       <small>${categories[tour.category]} · ${tour.spaces.length} espacios${editing && tour.published ? ' · Publicado localmente' : ''}</small>
     </div>${editing ? `<details class="menu"><summary aria-label="Opciones de ${escape(tour.title)}">⋮</summary><div>
       ${tour.spaces.length ? link(route, 'Abrir visor', 'menu-link') : ''}
@@ -112,7 +121,7 @@ function information() {
     <fieldset><legend>Tipo de recorrido</legend><div class="categories">
       ${Object.entries(categories).map(([id, name]) => `<label class="category">
         <input type="radio" name="category" value="${id}" ${draft.category === id ? 'checked' : ''}>
-        <span aria-hidden="true">${icons[id]}</span>${name}</label>`).join('')}
+        ${categoryIcon(id)}${name}</label>`).join('')}
     </div></fieldset>
     <label for="description">Descripción</label>
     <textarea id="description" name="description" maxlength="2000" rows="4" placeholder="Describe tu recorrido…">${escape(draft.description)}</textarea>
