@@ -13,6 +13,7 @@ const imageTypes = ['image/jpeg', 'image/png', 'image/webp'];
 const urls = new Map();
 let tours = [];
 let draft;
+const editorRoutes = ['editar', 'espacios', 'conexiones', 'publicacion'];
 let stage = 0;
 let selectedSpace;
 let selectedLink;
@@ -85,7 +86,13 @@ function card(tour, editing) {
       ${categoryIcon(tour.category)} ${escape(tour.title)}</a>
       <small>${categories[tour.category]} · ${tour.spaces.length} espacios${editing && tour.published ? ' · Publicado localmente' : ''}</small>
     </div>${editing ? `<details class="menu"><summary aria-label="Opciones de ${escape(tour.title)}">⋮</summary><div>
-      ${tour.spaces.length ? link(route, 'Abrir visor', 'menu-link') : ''}
+      ${link('espacios/' + tour.id, 'Gestionar espacios 360°', 'menu-link')}
+      ${tour.spaces.length ? [
+        link('conexiones/' + tour.id, 'Conectar espacios', 'menu-link'),
+        link(route, 'Abrir visor 360°', 'menu-link'),
+        link('mapa/' + tour.id, 'Mapa del recorrido', 'menu-link'),
+        link('publicacion/' + tour.id, 'Publicación', 'menu-link'),
+      ].join('') : ''}
       ${button('duplicate', 'Duplicar', 'text-button', tour.id)}
       ${button('export', 'Exportar archivo', 'text-button', tour.id)}
       ${button('remove', 'Eliminar', 'text-button danger', tour.id)}
@@ -95,11 +102,11 @@ function card(tour, editing) {
 
 function listing(editing, category = '') {
   const entries = editing ? tours : [...catalog, ...tours.filter(tour => tour.published)];
-  return `<main class="panel">
+  return `<main class="panel listing-panel">
     <div class="heading"><h1>${editing ? 'Mis recorridos' : 'Explorar recorridos'}</h1>
       ${editing ? `<div class="actions">${button('import', 'Importar archivo')}${link('crear', '＋ Crear recorrido', 'button primary')}</div>` : ''}
     </div>
-    <p class="muted">${editing ? 'Tus recorridos y fotos se guardan en este navegador. Exporta un archivo para conservar una copia.' : 'Explora los recorridos del catálogo y los publicados en este navegador.'}</p>
+    <p class="muted">${editing ? 'Abre el menú ⋮ de cada recorrido para gestionar espacios, conexiones, visor y mapa. Los archivos se guardan en este navegador.' : 'Explora los recorridos del catálogo y los publicados en este navegador.'}</p>
     <div class="filters">
       <input type="search" id="search" placeholder="Buscar recorridos…" aria-label="Buscar recorridos">
       <select id="filter" aria-label="Filtrar por categoría"><option value="">Todas las categorías</option>
@@ -133,7 +140,7 @@ function information() {
 }
 
 function spaces() {
-  return `<div class="heading"><h2>Espacios del recorrido</h2>${button('upload', '＋ Agregar espacio 360°', 'primary')}</div>
+  return `<div class="heading"><h1>Espacios del recorrido</h1>${button('upload', '＋ Agregar espacio 360°', 'primary')}</div>
     <input id="panoramas" type="file" accept="image/jpeg,image/png,image/webp" multiple hidden>
     <p class="muted">Sube fotos equirectangulares 2:1 exportadas desde Insta360 Studio o la app Insta360. Formatos JPEG, PNG y WebP.</p>
     <ol class="space-list">${draft.spaces.map((space, index) => `<li>
@@ -155,7 +162,7 @@ function connections() {
   selectedSpace = space.id;
   const targets = draft.spaces.filter(item => item.id !== space.id);
   const current = space.links.find(item => item.id === selectedLink);
-  return `<h2>Conectar espacios</h2>
+  return `<h1>Conectar espacios</h1>
     <p class="muted">${targets.length ? 'Elige el destino y coloca el punto sobre la puerta o el paso en la panorámica.' : 'Agrega otro espacio para crear una conexión.'}</p>
     <div id="panorama" class="panorama editor" aria-label="Editor panorámico"></div>
     ${spaceStrip(draft, space.id, 'select-space')}
@@ -172,7 +179,7 @@ function connections() {
 }
 
 function publication() {
-  return `<h2>Publicación</h2>
+  return `<h1>Publicación</h1>
     <div class="publication">${cover(draft)}<div><h3>${escape(draft.title)}</h3>
       <p>${categories[draft.category]} · ${draft.spaces.length} espacios</p>
       <p>${escape(draft.description)}</p></div></div>
@@ -185,12 +192,18 @@ function publication() {
 }
 
 function wizard() {
+  const saved = tours.some(tour => tour.id === draft.id);
   return `<main class="panel wizard">
-    <h1>${tours.some(tour => tour.id === draft.id) ? 'Editar recorrido' : 'Crear recorrido'}</h1>
-    <ol class="steps">${stages.map((name, index) => `<li class="${index === stage ? 'active' : ''}" ${index === stage ? 'aria-current="step"' : ''}>
-      <span>${index + 1}</span>${name}</li>`).join('')}</ol>
+    ${stage === 0 ? `<h1>${saved ? 'Editar recorrido' : 'Crear recorrido'}</h1>` : ''}
+    <nav aria-label="Etapas del recorrido"><ol class="steps">${stages.map((name, index) => {
+      const label = `<span>${index + 1}</span>${name}`;
+      const available = saved && stage !== index && (index < 2 || draft.spaces.length);
+      return `<li class="${index === stage ? 'active' : ''}" ${index === stage ? 'aria-current="step"' : ''}>
+        ${available ? link(editorRoutes[index] + '/' + draft.id, label, 'step-link') : `<div class="step-link">${label}</div>`}</li>`;
+    }).join('')}</ol></nav>
+    ${stage ? `<p class="editor-context">${escape(draft.title)}</p>` : ''}
     ${[information, spaces, connections, publication][stage]()}
-    ${stage ? `<div class="form-actions">${button('back', '← Anterior')}
+    ${stage ? `<div class="form-actions">${link(editorRoutes[stage - 1] + '/' + draft.id, '← Anterior', 'button secondary')}
       ${stage === 3 ? link('recorridos', 'Mis recorridos', 'button secondary') : button('next', 'Siguiente →', 'primary')}</div>` : ''}
   </main>`;
 }
@@ -205,7 +218,8 @@ function spaceStrip(tour, id, action) {
 function tourViewer(tour, space) {
   return `<main class="viewer-frame" id="viewer-frame">
     <div class="viewer-heading"><div><h1>${escape(tour.title)}</h1><span>${escape(space.name)} · 360°</span></div>
-      ${button('fullscreen', '⛶ <span class="sr-only">Pantalla completa</span>', 'glass')}</div>
+      <div class="actions">${tour.publicKey ? '' : link('espacios/' + tour.id, 'Editar espacios', 'button glass')}
+      ${button('fullscreen', '⛶ <span class="sr-only">Pantalla completa</span>', 'glass')}</div></div>
     <div id="panorama" class="panorama" aria-label="Panorámica de ${escape(space.name)}"></div>
     <div class="viewer-controls">
       ${button('map', '▥ Mapa', 'glass')}${button('show-spaces', '▦ Espacios', 'glass')}
@@ -336,7 +350,11 @@ function render() {
   if (screen === 'inicio') content = home();
   if (screen === 'recorridos' || screen === 'explorar') content = listing(screen === 'recorridos', id);
   if (screen === 'ayuda') content = help();
-  if (['crear', 'editar'].includes(screen) && draft) {
+  if (editorRoutes.includes(screen) && !draft) {
+    content = '<main class="panel"><h1>Recorrido no disponible</h1><p>Selecciona un recorrido guardado en este navegador.</p>'
+      + link('recorridos', 'Mis recorridos', 'button secondary') + '</main>';
+  }
+  if ((screen === 'crear' || editorRoutes.includes(screen)) && draft) {
     nav = 'recorridos';
     content = wizard();
     if (stage === 2 && selectedSpace) panorama = [draft, draft.spaces.find(item => item.id === selectedSpace), true];
@@ -383,12 +401,16 @@ function onRoute() {
   const key = `${screen}/${id || ''}`;
   if (key !== onRoute.key) {
     if (screen === 'crear') draft = newTour();
-    if (screen === 'editar') {
+    if (editorRoutes.includes(screen)) {
       const tour = tours.find(item => item.id === id);
       draft = tour && structuredClone(tour);
+      if (draft && editorRoutes.indexOf(screen) > 1 && !draft.spaces.length) {
+        location.replace('#espacios/' + id);
+        return;
+      }
     }
-    if (['crear', 'editar'].includes(screen)) {
-      stage = 0;
+    if (screen === 'crear' || editorRoutes.includes(screen)) {
+      stage = screen === 'crear' ? 0 : editorRoutes.indexOf(screen);
       selectedSpace = undefined;
       selectedLink = undefined;
       placing = false;
@@ -475,8 +497,7 @@ app.addEventListener('submit', event => {
       Object.assign(updated, { title, description: form.get('description').trim(), category: form.get('category') });
       if (file.size) updated.cover = file;
     });
-    stage = 1;
-    render();
+    location.hash = 'espacios/' + draft.id;
   });
 });
 
@@ -535,12 +556,9 @@ const actions = {
     const tour = tours.find(item => item.id === id);
     download(await exportTour(tour), `${tour.title.replace(/[^\p{L}\p{N} -]/gu, '_')}.virtualtours.json`);
   },
-  back() { stage--; placing = false; render(); },
   next() {
     if (!draft.spaces.length) throw new Error('Agrega al menos un espacio 360° para continuar.');
-    stage++;
-    placing = false;
-    render();
+    location.hash = editorRoutes[stage + 1] + '/' + draft.id;
   },
   'select-space'(id) { selectedSpace = id; selectedLink = undefined; placing = false; render(); },
   preview(id) { location.hash = `ver/${draft.id}/${id}`; },

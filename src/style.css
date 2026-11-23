@@ -71,6 +71,7 @@ button:focus-visible, a:focus-visible, select:focus-visible, input:focus-visible
 .text-button { justify-content: start; min-height: 35px; }
 .text-button:hover, .menu-link:hover { background: #e7f0ff; }
 .panel { min-height: 480px; padding: clamp(17px, 4vw, 45px); background: var(--panel); }
+.listing-panel { overflow: visible; }
 .panel h1 { margin: 0 0 10px; font-size: clamp(1.45rem, 3vw, 2.25rem); letter-spacing: -.025em; }
 h2 { margin: 0 0 14px; font-size: clamp(1.1rem, 2vw, 1.45rem); }
 h3 { margin: 0 0 5px; }
@@ -110,6 +111,9 @@ small { display: block; color: var(--muted); margin-top: 4px; }
 .steps { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); margin: 22px 0; padding: 0; list-style: none; }
 .steps li { position: relative; display: grid; justify-items: center; gap: 5px; text-align: center; color: #4b6380; font-size: clamp(.7rem, 2vw, .92rem); font-weight: 650; }
 .steps li:not(:last-child)::after { content: ''; position: absolute; top: 15px; left: calc(50% + 21px); width: calc(100% - 42px); border-top: 1px solid #9fb8d4; }
+.step-link { display: grid; justify-items: center; gap: 5px; }
+a.step-link:hover { color: var(--blue); text-decoration: underline; }
+.editor-context { margin: 0 0 5px; color: var(--muted); font-weight: 650; overflow-wrap: anywhere; }
 .steps span { display: grid; place-items: center; border-radius: 50%; width: 31px; height: 31px; color: white; background: #526b87; }
 .steps .active { color: #0738ca; }
 .steps .active span { background: var(--blue); }
