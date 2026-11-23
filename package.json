@@ -1,0 +1,14 @@
+{
+  "name": "virtualtours",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "test": "node --test",
+    "preview": "node scripts/preview.mjs",
+    "catalogo": "node scripts/catalog.mjs"
+  },
+  "dependencies": {
+    "pannellum": "2.5.7"
+  }
+}
